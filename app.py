@@ -1,6 +1,9 @@
 import streamlit as st
 import requests
 from openai import OpenAI
+import base64
+from io import BytesIO
+from PIL import Image
 
 # Set up the Streamlit page view layout for tablet and web compliance
 st.set_page_config(page_title="Luxury Real Estate Marketing Suite", layout="wide")
@@ -10,6 +13,10 @@ if "luxury_text" not in st.session_state:
     st.session_state.luxury_text = ""
 if "image_url" not in st.session_state:
     st.session_state.image_url = None
+if "uploaded_image" not in st.session_state:
+    st.session_state.uploaded_image = None
+if "use_uploaded_photo" not in st.session_state:
+    st.session_state.use_uploaded_photo = False
 
 
 def generate_luxury_text(details, style, openai_key):
@@ -56,6 +63,34 @@ def generate_luxury_image(details, openai_key):
         return response.data[0].url
     except Exception as e:
         return f"Image Generation Error: {str(e)}"
+
+
+def convert_image_to_url(image_file):
+    """
+    Converts uploaded image file to base64 data URL for social media posting.
+    Supports JPG, PNG, and WebP formats.
+    """
+    try:
+        image = Image.open(image_file)
+        
+        # Convert RGBA to RGB if necessary (for JPEG compatibility)
+        if image.mode in ('RGBA', 'LA', 'P'):
+            rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+            rgb_image.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = rgb_image
+        
+        # Resize to optimize for social media (max 1024x1024)
+        image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        
+        # Convert to base64 data URL
+        buffered = BytesIO()
+        image.save(buffered, format="JPEG", quality=95)
+        img_base64 = base64.b64encode(buffered.getvalue()).decode()
+        data_url = f"data:image/jpeg;base64,{img_base64}"
+        
+        return data_url
+    except Exception as e:
+        return f"Image Conversion Error: {str(e)}"
 
 
 def publish_to_facebook(message, image_url, page_id, page_token):
@@ -175,6 +210,30 @@ with col_in2:
         ["Ultra-Luxury & Elegant", "Modern & Sleek", "High-Energy & Bold", "Sophisticated & Minimalist"]
     )
 
+# Photo upload section
+st.subheader("1b. Upload Property Photo (Optional)")
+col_photo1, col_photo2 = st.columns([2, 1])
+
+with col_photo1:
+    uploaded_file = st.file_uploader(
+        "Upload a property photo (JPG, PNG, or WebP)", 
+        type=["jpg", "jpeg", "png", "webp"],
+        help="Upload actual property photos instead of AI-generated images"
+    )
+    
+    if uploaded_file is not None:
+        st.session_state.uploaded_image = uploaded_file
+        # Display preview
+        image_preview = Image.open(uploaded_file)
+        st.image(image_preview, caption="Uploaded Property Photo", use_container_width=True)
+
+with col_photo2:
+    if st.session_state.uploaded_image:
+        st.success("✅ Photo uploaded successfully!")
+        st.session_state.use_uploaded_photo = st.checkbox("Use uploaded photo for posting", value=True)
+    else:
+        st.info("No photo uploaded yet")
+
 # Execution layout pipeline trigger button
 if st.button("🔥 Generate All Assets", type="primary", use_container_width=True):
     if not openai_api_key:
@@ -185,7 +244,12 @@ if st.button("🔥 Generate All Assets", type="primary", use_container_width=Tru
         with st.spinner("Writing luxury copy and building AI graphics..."):
             # Execute backend generation functions sequentially
             st.session_state.luxury_text = generate_luxury_text(property_details, writing_style, openai_api_key)
-            st.session_state.image_url = generate_luxury_image(property_details, openai_api_key)
+            
+            # Use uploaded photo if available and selected, otherwise generate AI image
+            if st.session_state.use_uploaded_photo and st.session_state.uploaded_image:
+                st.session_state.image_url = convert_image_to_url(st.session_state.uploaded_image)
+            else:
+                st.session_state.image_url = generate_luxury_image(property_details, openai_api_key)
 
 # Render and Display assets dynamically if they exist within current context
 if st.session_state.luxury_text:
@@ -202,7 +266,13 @@ if st.session_state.luxury_text:
     with col_out2:
         st.write("### 🎨 AI Rendered Visual Asset")
         if st.session_state.image_url and not st.session_state.image_url.startswith("Image"):
-            st.image(st.session_state.image_url, caption="Generated Visual Graphic", use_container_width=True)
+            if st.session_state.image_url.startswith("data:image"):
+                # Display base64 image from uploaded file
+                st.markdown(f'<img src="{st.session_state.image_url}" style="max-width: 100%;" />', unsafe_allow_html=True)
+                st.caption("Uploaded Property Photo")
+            else:
+                # Display URL-based image from DALL-E
+                st.image(st.session_state.image_url, caption="Generated Visual Graphic", use_container_width=True)
         else:
             st.warning(st.session_state.image_url if st.session_state.image_url else "No image asset generated.")
 
