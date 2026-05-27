@@ -115,3 +115,53 @@ with col_in2:
         "Brand Target Style", 
         ["Ultra-Luxury & Elegant", "Modern & Sleek", "High-Energy & Bold", "Sophisticated & Minimalist"]
     )
+
+# Execution layout pipeline trigger button
+if st.button("🔥 Generate All Assets", type="primary", use_container_width=True):
+    if not openai_api_key:
+        st.error("Please add your OpenAI API Key in the sidebar first!")
+    elif not property_details:
+        st.error("Please insert property details before running.")
+    else:
+        with st.spinner("Writing luxury copy and building AI graphics..."):
+            # Execute backend generation functions sequentially
+            st.session_state.luxury_text = generate_luxury_text(property_details, writing_style, openai_api_key)
+            st.session_state.image_url = generate_luxury_image(property_details, openai_api_key)
+
+# Render and Display assets dynamically if they exist within current context
+if st.session_state.luxury_text:
+    st.markdown("---")
+    st.subheader("2. Review Generated Marketing Assets")
+    
+    col_out1, col_out2 = st.columns(2)
+    
+    with col_out1:
+        st.write("### 📝 Text Listing & Caption")
+        # Editable text area so agents can refine the text manually before pushing live
+        st.session_state.luxury_text = st.text_area("Edit Copy:", value=st.session_state.luxury_text, height=350)
+        
+    with col_out2:
+        st.write("### 🎨 AI Rendered Visual Asset")
+        if st.session_state.image_url and not st.session_state.image_url.startswith("Image"):
+            st.image(st.session_state.image_url, caption="Generated Visual Graphic", use_container_width=True)
+        else:
+            st.warning(st.session_state.image_url if st.session_state.image_url else "No image asset generated.")
+
+    # Section for pushing generated assets onto live social networks
+    st.markdown("---")
+    st.subheader("3. Direct Distribution Hub")
+    
+    include_image_toggle = st.checkbox("Include visual graphic in social blast", value=True)
+    
+    if st.button("🚀 Publish Live to Facebook Business Feed", use_container_width=True):
+        if not fb_page_id or not fb_page_token:
+            st.error("Missing Facebook Page credentials in the sidebar!")
+        else:
+            with st.spinner("Publishing directly to Facebook..."):
+                img_to_send = st.session_state.image_url if include_image_toggle else None
+                status = publish_to_facebook(st.session_state.luxury_text, img_to_send, fb_page_id, fb_page_token)
+                
+                if "Success" in status:
+                    st.success(status)
+                else:
+                    st.error(status)
