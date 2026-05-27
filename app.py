@@ -33,3 +33,26 @@ def generate_luxury_text(details, style, openai_key):
         return response.choices[0].message.content
     except Exception as e:
         return f"Text Generation Error: {str(e)}"
+
+
+def generate_luxury_image(details, openai_key):
+    """
+    Uses OpenAI's DALL-E 3 model to transform textual details 
+    into an Editorial/Architectural Digest style visual graphic asset.
+    """
+    try:
+        client = OpenAI(api_key=openai_key)
+        image_prompt = (
+            f"High-end luxury real estate photography, architectural digest style, "
+            f"bright professional interior lighting, daytime, showcasing a stunning view of: {details[:400]}"
+        )
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=image_prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        return response.data[0].url
+    except Exception as e:
+        return f"Image Generation Error: {str(e)}"
