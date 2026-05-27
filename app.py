@@ -56,3 +56,36 @@ def generate_luxury_image(details, openai_key):
         return response.data[0].url
     except Exception as e:
         return f"Image Generation Error: {str(e)}"
+
+
+def publish_to_facebook(message, image_url, page_id, page_token):
+    """
+    Communicates via HTTP requests with the Meta Graph API v19.0+ 
+    to automatically publish text and imagery directly onto a Facebook Page.
+    """
+    try:
+        if image_url:
+            # Endpoint designed for uploading photos with text captions
+            url = f"https://graph.facebook.com/v19.0/{page_id}/photos"
+            payload = {
+                "url": image_url,
+                "caption": message,
+                "access_token": page_token
+            }
+        else:
+            # Fallback endpoint designed for text-only timeline posts
+            url = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+            payload = {
+                "message": message,
+                "access_token": page_token
+            }
+        
+        response = requests.post(url, data=payload)
+        result = response.json()
+        
+        if "id" in result:
+            return f"🚀 Success! Posted live to Facebook. Post ID: {result['id']}"
+        else:
+            return f"❌ Meta API Error: {result.get('error', {}).get('message', 'Unknown error')}"
+    except Exception as e:
+        return f"❌ Connection Error: {str(e)}"
