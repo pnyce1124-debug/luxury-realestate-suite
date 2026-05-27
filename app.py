@@ -91,6 +91,63 @@ def publish_to_facebook(message, image_url, page_id, page_token):
         return f"❌ Connection Error: {str(e)}"
 
 
+def publish_to_linkedin(message, image_url, person_urn, oauth_token):
+    """
+    Handles OAuth2-authenticated posting to LinkedIn using the Share API endpoint.
+    Supports both text-only posts and posts with image attachments for professional luxury real estate content.
+    """
+    try:
+        headers = {
+            "Authorization": f"Bearer {oauth_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0"
+        }
+        
+        # Base payload structure for LinkedIn Share API
+        payload = {
+            "actor": person_urn,
+            "object": "urn:li:digitalmediaAsset:{}",
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {
+                        "text": message
+                    },
+                    "shareMediaCategory": "NONE"
+                }
+            },
+            "visibilityCode": "PUBLIC"
+        }
+        
+        # If image provided, construct media attachment
+        if image_url:
+            payload["specificContent"]["com.linkedin.ugc.ShareContent"]["shareMediaCategory"] = "IMAGE"
+            payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
+                {
+                    "status": "READY",
+                    "description": {
+                        "text": "Luxury Real Estate Property Visualization"
+                    },
+                    "media": image_url,
+                    "title": {
+                        "text": "Premium Property Listing"
+                    }
+                }
+            ]
+        
+        url = "https://api.linkedin.com/v2/ugcPosts"
+        response = requests.post(url, json=payload, headers=headers)
+        result = response.json()
+        
+        if response.status_code == 201 and "id" in result:
+            return f"🚀 Success! Posted live to LinkedIn. Post ID: {result['id']}"
+        else:
+            error_msg = result.get('message', 'Unknown error')
+            return f"❌ LinkedIn API Error: {error_msg}"
+    except Exception as e:
+        return f"❌ Connection Error: {str(e)}"
+
+
 # Create titles and dynamic user instructions
 st.title("🏙️ Premium Real Estate AI Marketing Suite")
 st.write("Transform raw descriptions into luxury copy and graphics, then auto-post them live.")
@@ -100,6 +157,8 @@ st.sidebar.header("🔑 Developer & API Settings")
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 fb_page_id = st.sidebar.text_input("Facebook Page ID")
 fb_page_token = st.sidebar.text_input("Facebook Page Access Token", type="password")
+linkedin_person_urn = st.sidebar.text_input("LinkedIn Person URN")
+linkedin_oauth_token = st.sidebar.text_input("LinkedIn OAuth2 Access Token", type="password")
 
 # Core layout columns for input data gathering
 st.subheader("1. Enter Property Characteristics")
@@ -153,15 +212,32 @@ if st.session_state.luxury_text:
     
     include_image_toggle = st.checkbox("Include visual graphic in social blast", value=True)
     
-    if st.button("🚀 Publish Live to Facebook Business Feed", use_container_width=True):
-        if not fb_page_id or not fb_page_token:
-            st.error("Missing Facebook Page credentials in the sidebar!")
-        else:
-            with st.spinner("Publishing directly to Facebook..."):
-                img_to_send = st.session_state.image_url if include_image_toggle else None
-                status = publish_to_facebook(st.session_state.luxury_text, img_to_send, fb_page_id, fb_page_token)
-                
-                if "Success" in status:
-                    st.success(status)
-                else:
-                    st.error(status)
+    col_fb, col_li = st.columns(2)
+    
+    with col_fb:
+        if st.button("🚀 Publish Live to Facebook Business Feed", use_container_width=True):
+            if not fb_page_id or not fb_page_token:
+                st.error("Missing Facebook Page credentials in the sidebar!")
+            else:
+                with st.spinner("Publishing directly to Facebook..."):
+                    img_to_send = st.session_state.image_url if include_image_toggle else None
+                    status = publish_to_facebook(st.session_state.luxury_text, img_to_send, fb_page_id, fb_page_token)
+                    
+                    if "Success" in status:
+                        st.success(status)
+                    else:
+                        st.error(status)
+    
+    with col_li:
+        if st.button("💼 Publish Live to LinkedIn Professional Network", use_container_width=True):
+            if not linkedin_person_urn or not linkedin_oauth_token:
+                st.error("Missing LinkedIn credentials in the sidebar!")
+            else:
+                with st.spinner("Publishing directly to LinkedIn..."):
+                    img_to_send = st.session_state.image_url if include_image_toggle else None
+                    status = publish_to_linkedin(st.session_state.luxury_text, img_to_send, linkedin_person_urn, linkedin_oauth_token)
+                    
+                    if "Success" in status:
+                        st.success(status)
+                    else:
+                        st.error(status)
