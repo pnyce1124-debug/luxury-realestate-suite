@@ -89,3 +89,29 @@ def publish_to_facebook(message, image_url, page_id, page_token):
             return f"❌ Meta API Error: {result.get('error', {}).get('message', 'Unknown error')}"
     except Exception as e:
         return f"❌ Connection Error: {str(e)}"
+
+
+# Create titles and dynamic user instructions
+st.title("🏙️ Premium Real Estate AI Marketing Suite")
+st.write("Transform raw descriptions into luxury copy and graphics, then auto-post them live.")
+
+# Sidebar architecture for managing secret credentials securely
+st.sidebar.header("🔑 Developer & API Settings")
+openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+fb_page_id = st.sidebar.text_input("Facebook Page ID")
+fb_page_token = st.sidebar.text_input("Facebook Page Access Token", type="password")
+
+# Core layout columns for input data gathering
+st.subheader("1. Enter Property Characteristics")
+col_in1, col_in2 = st.columns([2, 1])
+
+with col_in1:
+    property_details = st.text_area(
+        "Raw Property Details / Scraped Text", 
+        placeholder="e.g., 4 bed, 5 bath, infinity pool, marble details, panoramic ocean view in Malibu..."
+    )
+with col_in2:
+    writing_style = st.selectbox(
+        "Brand Target Style", 
+        ["Ultra-Luxury & Elegant", "Modern & Sleek", "High-Energy & Bold", "Sophisticated & Minimalist"]
+    )
